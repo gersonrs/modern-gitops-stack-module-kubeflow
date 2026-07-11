@@ -72,6 +72,12 @@ resource "argocd_application" "oauth2-proxy" {
     }
 
     sync_policy {
+      dynamic "managed_namespace_metadata" {
+        for_each = length(var.namespace_labels) > 0 ? [var.namespace_labels] : []
+        content {
+          labels = managed_namespace_metadata.value
+        }
+      }
       dynamic "automated" {
         for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
         content {
@@ -101,8 +107,619 @@ resource "argocd_application" "oauth2-proxy" {
   ]
 }
 
+resource "argocd_application" "dex" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "dex-${var.destination_cluster}" : "dex"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "dex"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/common/dex-istio"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.oauth2-proxy,
+  ]
+}
+
+resource "argocd_application" "kubeflow-configs" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "kubeflow-configs-${var.destination_cluster}" : "kubeflow-configs"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "kubeflow-configs"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/common/roles-namespaces"
+      target_revision = var.target_revision
+    }
+
+    ignore_difference {
+      group = "rbac.authorization.k8s.io"
+      kind  = "ClusterRole"
+      jq_path_expressions = [
+        ".rules"
+      ]
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.oauth2-proxy,
+  ]
+}
+
+resource "argocd_application" "central-dashboard" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "central-dashboard-${var.destination_cluster}" : "central-dashboard"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "central-dashboard"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/apps/central-dashboard"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.kubeflow-configs,
+  ]
+}
+
+resource "argocd_application" "admission-webhook" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "admission-webhook-${var.destination_cluster}" : "admission-webhook"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "admission-webhook"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/apps/admission-webhook"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    ignore_difference {
+      group         = "admissionregistration.k8s.io"
+      kind          = "MutatingWebhookConfiguration"
+      json_pointers = ["/webhooks/0/clientConfig/caBundle"]
+    }
+
+    ignore_difference {
+      group = "rbac.authorization.k8s.io"
+      kind  = "ClusterRole"
+      jq_path_expressions = [
+        ".rules"
+      ]
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.central-dashboard,
+  ]
+}
+
+resource "argocd_application" "jupyter" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "jupyter-${var.destination_cluster}" : "jupyter"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "jupyter"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/apps/jupyter"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    ignore_difference {
+      group = "rbac.authorization.k8s.io"
+      kind  = "ClusterRole"
+      jq_path_expressions = [
+        ".rules"
+      ]
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.admission-webhook,
+  ]
+}
+
+resource "argocd_application" "pvcviewer-controller" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "pvcviewer-controller-${var.destination_cluster}" : "pvcviewer-controller"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "pvcviewer-controller"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/apps/pvcviewer-controller"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    ignore_difference {
+      group = "rbac.authorization.k8s.io"
+      kind  = "ClusterRole"
+      jq_path_expressions = [
+        ".rules"
+      ]
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.jupyter,
+  ]
+}
+resource "argocd_application" "profiles" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "profiles-${var.destination_cluster}" : "profiles"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "profiles"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/apps/profiles"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    ignore_difference {
+      group = "rbac.authorization.k8s.io"
+      kind  = "ClusterRole"
+      jq_path_expressions = [
+        ".rules"
+      ]
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.pvcviewer-controller,
+  ]
+}
+
+resource "argocd_application" "volumes-web-app" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "volumes-web-app-${var.destination_cluster}" : "volumes-web-app"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "volumes-web-app"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/apps/volumes-web-app"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    ignore_difference {
+      group = "rbac.authorization.k8s.io"
+      kind  = "ClusterRole"
+      jq_path_expressions = [
+        ".rules"
+      ]
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.profiles,
+  ]
+}
+
+resource "argocd_application" "user-namespace" {
+  metadata {
+    name      = var.destination_cluster != "in-cluster" ? "user-namespace-${var.destination_cluster}" : "user-namespace"
+    namespace = var.argocd_namespace
+    labels = merge({
+      "application" = "user-namespace"
+      "cluster"     = var.destination_cluster
+    }, var.argocd_labels)
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "15m"
+  }
+
+  wait = var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? false : true
+
+  spec {
+    project = var.argocd_project == null ? argocd_project.this[0].metadata.0.name : var.argocd_project
+
+    source {
+      repo_url        = var.project_source_repo
+      path            = "charts/kubeflow/common/user-namespace"
+      target_revision = var.target_revision
+    }
+
+    destination {
+      name      = var.destination_cluster
+      namespace = var.namespace
+    }
+
+    sync_policy {
+      dynamic "automated" {
+        for_each = toset(var.app_autosync == { "allow_empty" = tobool(null), "prune" = tobool(null), "self_heal" = tobool(null) } ? [] : [var.app_autosync])
+        content {
+          prune       = automated.value.prune
+          self_heal   = automated.value.self_heal
+          allow_empty = automated.value.allow_empty
+        }
+      }
+
+      retry {
+        backoff {
+          duration     = "20s"
+          max_duration = "2m"
+          factor       = "2"
+        }
+        limit = "5"
+      }
+
+      sync_options = [
+        "CreateNamespace=true",
+      ]
+    }
+  }
+
+  depends_on = [
+    resource.argocd_application.volumes-web-app,
+  ]
+}
+
 resource "null_resource" "this" {
   depends_on = [
-    resource.argocd_application.this,
+    resource.argocd_application.oauth2-proxy,
+    resource.argocd_application.dex,
+    resource.argocd_application.kubeflow-configs,
+    resource.argocd_application.central-dashboard,
+    resource.argocd_application.admission-webhook,
+    resource.argocd_application.jupyter,
+    resource.argocd_application.pvcviewer-controller,
+    resource.argocd_application.profiles,
+    resource.argocd_application.volumes-web-app,
+    resource.argocd_application.user-namespace,
   ]
 }
