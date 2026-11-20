@@ -7,42 +7,45 @@
 
 The following requirements are needed by this module:
 
-- [[requirement_argocd]] <<requirement_argocd,argocd>> (>= 6)
+- [[requirement_terraform]] <<requirement_terraform,terraform>> (>= 1.9.0)
 
-- [[requirement_kubernetes]] <<requirement_kubernetes,kubernetes>> (>= 2)
+- [[requirement_argocd]] <<requirement_argocd,argocd>> (~> 7.18)
 
-- [[requirement_null]] <<requirement_null,null>> (>= 3)
+- [[requirement_kubernetes]] <<requirement_kubernetes,kubernetes>> (~> 3.5)
 
-- [[requirement_random]] <<requirement_random,random>> (>= 3)
+- [[requirement_null]] <<requirement_null,null>> (~> 3.3)
 
-- [[requirement_utils]] <<requirement_utils,utils>> (>= 1)
+- [[requirement_random]] <<requirement_random,random>> (~> 3.9)
+
+- [[requirement_utils]] <<requirement_utils,utils>> (~> 2.7)
 
 === Providers
 
 The following providers are used by this module:
 
-- [[provider_random]] <<provider_random,random>> (>= 3)
+- [[provider_null]] <<provider_null,null>> (3.3.2)
 
-- [[provider_null]] <<provider_null,null>> (>= 3)
+- [[provider_argocd]] <<provider_argocd,argocd>> (7.18.0)
 
-- [[provider_argocd]] <<provider_argocd,argocd>> (>= 6)
-
-- [[provider_kubernetes]] <<provider_kubernetes,kubernetes>> (>= 2)
-
-- [[provider_utils]] <<provider_utils,utils>> (>= 1)
+- [[provider_utils]] <<provider_utils,utils>> (2.7.0)
 
 === Resources
 
 The following resources are used by this module:
 
-- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.this] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.admission-webhook] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.central-dashboard] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.dex] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.jupyter] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.kubeflow-configs] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.oauth2-proxy] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.profiles] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.pvcviewer-controller] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.user-namespace] (resource)
+- https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.volumes-web-app] (resource)
 - https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/project[argocd_project.this] (resource)
-- https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace[kubernetes_namespace.kube_prometheus_stack_namespace] (resource)
-- https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret[kubernetes_secret.thanos_object_storage_secret] (resource)
 - https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource[null_resource.dependencies] (resource)
 - https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource[null_resource.this] (resource)
-- https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password[random_password.grafana_admin_password] (resource)
-- https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password[random_password.oauth2_cookie_secret] (resource)
 - https://registry.terraform.io/providers/cloudposse/utils/latest/docs/data-sources/deep_merge_yaml[utils_deep_merge_yaml.values] (data source)
 
 === Required Inputs
@@ -64,6 +67,30 @@ Type: `string`
 === Optional Inputs
 
 The following input variables are optional (have default values):
+
+==== [[input_project_source_repo]] <<input_project_source_repo,project_source_repo>>
+
+Description: Repository allowed to be scraped in this AppProject.
+
+Type: `string`
+
+Default: `"https://github.com/GersonRS/modern-gitops-stack-module-kubeflow.git"`
+
+==== [[input_namespace]] <<input_namespace,namespace>>
+
+Description: Namespace where the applications's Kubernetes resources should be created. Namespace will be created in case it doesn't exist.
+
+Type: `string`
+
+Default: `"kubeflow"`
+
+==== [[input_argocd_namespace]] <<input_argocd_namespace,argocd_namespace>>
+
+Description: Namespace used by Argo CD where the Application and AppProject resources should be created.
+
+Type: `string`
+
+Default: `"argocd"`
 
 ==== [[input_subdomain]] <<input_subdomain,subdomain>>
 
@@ -161,6 +188,20 @@ Type: `map(string)`
 
 Default: `{}`
 
+==== [[input_namespace_labels]] <<input_namespace_labels,namespace_labels>>
+
+Description: Labels to apply to the destination namespace managed by Argo CD (requires CreateNamespace=true).
+
+Type: `map(string)`
+
+Default:
+[source,json]
+----
+{
+  "istio.io/dataplane-mode": "ambient"
+}
+----
+
 ==== [[input_resources]] <<input_resources,resources>>
 
 Description: Resource limits and requests for kube-prometheus-stack's components. Follow the style on https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[official documentation] to understand the format of the values.
@@ -254,57 +295,6 @@ object({
 
 Default: `{}`
 
-==== [[input_grafana]] <<input_grafana,grafana>>
-
-Description: Grafana settings
-
-Type: `any`
-
-Default: `{}`
-
-==== [[input_prometheus]] <<input_prometheus,prometheus>>
-
-Description: Prometheus settings
-
-Type: `any`
-
-Default: `{}`
-
-==== [[input_alertmanager]] <<input_alertmanager,alertmanager>>
-
-Description: Object containing Alertmanager settings. The following attributes are supported:
-
-* `enabled`: whether Alertmanager is deployed or not (default: `true`).
-* `domain`: domain name configured in the Ingress (default: `prometheus.apps.${var.cluster_name}.${var.base_domain}`).
-* `oidc`: OIDC configuration to be used by OAuth2 Proxy in front of Alertmanager (**required**).
-* `deadmanssnitch_url`: url of a Dead Man's Snitch service Alertmanager should report to (by default this reporing is disabled).
-* `slack_routes`: list of objects configuring routing of alerts to Slack channels, with the following attributes:
-  * `name`: name of the configured route.
-  * `channel`: channel where the alerts will be sent (with '#').
-  * `api_url`: slack URL you received when configuring a webhook integration.
-  * `matchers`: list of strings for filtering which alerts will be sent.
-  * `continue`: whether an alert should continue matching subsequent sibling nodes.
-
-Type: `any`
-
-Default: `{}`
-
-==== [[input_metrics_storage_main]] <<input_metrics_storage_main,metrics_storage_main>>
-
-Description: Storage settings for the Thanos sidecar. Needs to be of type `any` because the structure is different depending on the variant used.
-
-Type: `any`
-
-Default: `{}`
-
-==== [[input_dataproxy_timeout]] <<input_dataproxy_timeout,dataproxy_timeout>>
-
-Description: Variable to set the time when a query times out. This applies to all the Grafana's data sources and can be manually configured per data source if desired.
-
-Type: `number`
-
-Default: `30`
-
 === Outputs
 
 The following outputs are exported:
@@ -312,10 +302,6 @@ The following outputs are exported:
 ==== [[output_id]] <<output_id,id>>
 
 Description: ID to pass other modules in order to refer to this module as a dependency.
-
-==== [[output_grafana_admin_password]] <<output_grafana_admin_password,grafana_admin_password>>
-
-Description: The admin password for Grafana.
 // END_TF_DOCS
 
 === Reference in table format 
@@ -329,11 +315,12 @@ Description: The admin password for Grafana.
 [cols="a,a",options="header,autowidth"]
 |===
 |Name |Version
-|[[requirement_argocd]] <<requirement_argocd,argocd>> |>= 6
-|[[requirement_kubernetes]] <<requirement_kubernetes,kubernetes>> |>= 2
-|[[requirement_null]] <<requirement_null,null>> |>= 3
-|[[requirement_random]] <<requirement_random,random>> |>= 3
-|[[requirement_utils]] <<requirement_utils,utils>> |>= 1
+|[[requirement_terraform]] <<requirement_terraform,terraform>> |>= 1.9.0
+|[[requirement_argocd]] <<requirement_argocd,argocd>> |~> 7.18
+|[[requirement_kubernetes]] <<requirement_kubernetes,kubernetes>> |~> 3.5
+|[[requirement_null]] <<requirement_null,null>> |~> 3.3
+|[[requirement_random]] <<requirement_random,random>> |~> 3.9
+|[[requirement_utils]] <<requirement_utils,utils>> |~> 2.7
 |===
 
 = Providers
@@ -341,11 +328,9 @@ Description: The admin password for Grafana.
 [cols="a,a",options="header,autowidth"]
 |===
 |Name |Version
-|[[provider_random]] <<provider_random,random>> |>= 3
-|[[provider_null]] <<provider_null,null>> |>= 3
-|[[provider_kubernetes]] <<provider_kubernetes,kubernetes>> |>= 2
-|[[provider_utils]] <<provider_utils,utils>> |>= 1
-|[[provider_argocd]] <<provider_argocd,argocd>> |>= 6
+|[[provider_null]] <<provider_null,null>> |3.3.2
+|[[provider_argocd]] <<provider_argocd,argocd>> |7.18.0
+|[[provider_utils]] <<provider_utils,utils>> |2.7.0
 |===
 
 = Resources
@@ -353,14 +338,19 @@ Description: The admin password for Grafana.
 [cols="a,a",options="header,autowidth"]
 |===
 |Name |Type
-|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.this] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.admission-webhook] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.central-dashboard] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.dex] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.jupyter] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.kubeflow-configs] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.oauth2-proxy] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.profiles] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.pvcviewer-controller] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.user-namespace] |resource
+|https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/application[argocd_application.volumes-web-app] |resource
 |https://registry.terraform.io/providers/argoproj-labs/argocd/latest/docs/resources/project[argocd_project.this] |resource
-|https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace[kubernetes_namespace.kube_prometheus_stack_namespace] |resource
-|https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/secret[kubernetes_secret.thanos_object_storage_secret] |resource
 |https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource[null_resource.dependencies] |resource
 |https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource[null_resource.this] |resource
-|https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password[random_password.grafana_admin_password] |resource
-|https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password[random_password.oauth2_cookie_secret] |resource
 |https://registry.terraform.io/providers/cloudposse/utils/latest/docs/data-sources/deep_merge_yaml[utils_deep_merge_yaml.values] |data source
 |===
 
@@ -369,6 +359,24 @@ Description: The admin password for Grafana.
 [cols="a,a,a,a,a",options="header,autowidth"]
 |===
 |Name |Description |Type |Default |Required
+|[[input_project_source_repo]] <<input_project_source_repo,project_source_repo>>
+|Repository allowed to be scraped in this AppProject.
+|`string`
+|`"https://github.com/GersonRS/modern-gitops-stack-module-kubeflow.git"`
+|no
+
+|[[input_namespace]] <<input_namespace,namespace>>
+|Namespace where the applications's Kubernetes resources should be created. Namespace will be created in case it doesn't exist.
+|`string`
+|`"kubeflow"`
+|no
+
+|[[input_argocd_namespace]] <<input_argocd_namespace,argocd_namespace>>
+|Namespace used by Argo CD where the Application and AppProject resources should be created.
+|`string`
+|`"argocd"`
+|no
+
 |[[input_cluster_name]] <<input_cluster_name,cluster_name>>
 |Name given to the cluster. Value used for naming some the resources created by the module.
 |`string`
@@ -459,6 +467,20 @@ object({
 |n/a
 |`map(string)`
 |`{}`
+|no
+
+|[[input_namespace_labels]] <<input_namespace_labels,namespace_labels>>
+|Labels to apply to the destination namespace managed by Argo CD (requires CreateNamespace=true).
+|`map(string)`
+|
+
+[source]
+----
+{
+  "istio.io/dataplane-mode": "ambient"
+}
+----
+
 |no
 
 |[[input_resources]] <<input_resources,resources>>
@@ -555,48 +577,6 @@ object({
 |`{}`
 |no
 
-|[[input_grafana]] <<input_grafana,grafana>>
-|Grafana settings
-|`any`
-|`{}`
-|no
-
-|[[input_prometheus]] <<input_prometheus,prometheus>>
-|Prometheus settings
-|`any`
-|`{}`
-|no
-
-|[[input_alertmanager]] <<input_alertmanager,alertmanager>>
-|Object containing Alertmanager settings. The following attributes are supported:
-
-* `enabled`: whether Alertmanager is deployed or not (default: `true`).
-* `domain`: domain name configured in the Ingress (default: `prometheus.apps.${var.cluster_name}.${var.base_domain}`).
-* `oidc`: OIDC configuration to be used by OAuth2 Proxy in front of Alertmanager (**required**).
-* `deadmanssnitch_url`: url of a Dead Man's Snitch service Alertmanager should report to (by default this reporing is disabled).
-* `slack_routes`: list of objects configuring routing of alerts to Slack channels, with the following attributes:
-  * `name`: name of the configured route.
-  * `channel`: channel where the alerts will be sent (with '#').
-  * `api_url`: slack URL you received when configuring a webhook integration.
-  * `matchers`: list of strings for filtering which alerts will be sent.
-  * `continue`: whether an alert should continue matching subsequent sibling nodes.
-
-|`any`
-|`{}`
-|no
-
-|[[input_metrics_storage_main]] <<input_metrics_storage_main,metrics_storage_main>>
-|Storage settings for the Thanos sidecar. Needs to be of type `any` because the structure is different depending on the variant used.
-|`any`
-|`{}`
-|no
-
-|[[input_dataproxy_timeout]] <<input_dataproxy_timeout,dataproxy_timeout>>
-|Variable to set the time when a query times out. This applies to all the Grafana's data sources and can be manually configured per data source if desired.
-|`number`
-|`30`
-|no
-
 |===
 
 = Outputs
@@ -605,7 +585,6 @@ object({
 |===
 |Name |Description
 |[[output_id]] <<output_id,id>> |ID to pass other modules in order to refer to this module as a dependency.
-|[[output_grafana_admin_password]] <<output_grafana_admin_password,grafana_admin_password>> |The admin password for Grafana.
 |===
 // END_TF_TABLES
 ====
