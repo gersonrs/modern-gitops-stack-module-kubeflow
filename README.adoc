@@ -1,6 +1,39 @@
 = modern-gitops-stack-module-kubeflow
-// Document attributes to replace along the document
 
+A https://modern-gitops-stack.io[Modern GitOps Stack] module to deploy Kubeflow, the machine learning toolkit platform.
+
+The `kubeflow` chart is authored inside this repository rather than depending on an upstream chart, so the manifests track the custom resources this module needs.
+
+== Usage
+
+This module can be declared by adding the following block to your Terraform configuration:
+
+[source,terraform]
+----
+module "kubeflow" {
+  source = "git::https://github.com/GersonRS/modern-gitops-stack-module-kubeflow.git?ref=<RELEASE>"
+
+  cluster_name   = local.cluster_name
+  base_domain    = local.base_domain
+  subdomain      = local.subdomain
+  cluster_issuer = local.cluster_issuer
+  app_autosync   = local.app_autosync
+
+  dependency_ids = {
+    istio = module.istio.id
+  }
+}
+----
+
+The application is deployed to the `kubeflow` namespace.
+
+== Technical Reference
+
+=== Dependencies
+
+==== `module.istio.id`
+
+Kubeflow is exposed through the Istio gateway.
 
 // BEGIN_TF_DOCS
 === Requirements
