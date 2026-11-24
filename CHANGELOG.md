@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/gersonrs/modern-gitops-stack-module-kubeflow/compare/v2.0.0...v2.0.1) (2026-11-24)
+
+
+### 📚 Documentation
+
+* add usage and dependencies to the module documentation ([#5](https://github.com/gersonrs/modern-gitops-stack-module-kubeflow/issues/5)) ([5454b98](https://github.com/gersonrs/modern-gitops-stack-module-kubeflow/commit/5454b98a1c9cb2e1c39c04a41f25873d0839d5bb))
+
 ## [2.0.0](https://github.com/gersonrs/modern-gitops-stack-module-kubeflow/compare/v1.0.0...v2.0.0) (2026-11-20)
 
 
